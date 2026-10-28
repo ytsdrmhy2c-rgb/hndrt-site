@@ -1,0 +1,52 @@
+name: HN-DRT Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build site
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f hndrt-site-assets.zip || {
+            echo "::error::hndrt-site-assets.zip is missing. Upload the prepared asset archive once."
+            exit 1
+          }
+          mkdir -p _site
+          unzip -qq hndrt-site-assets.zip -d _site
+          test -f _site/assets/style.css
+          test -f _site/assets/site.js
+          test -f _site/assets/photos/field-day.jpg
+          for f in index.html about.html archive.html work.html equipment.html news.html story.html join.html contact.html; do
+            test -f "$f"
+            cp "$f" "_site/$f"
+          done
+          : > _site/.nojekyll
+          rm -f _site/admin.html
+          echo "Pages site prepared, without demo admin page."
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
